@@ -18,18 +18,18 @@ def Styblinski_Tang(x):
 
 def main():
 
-    search_space = [[-5,1], [-5,1], [-5,1]]
-    bp = BreedingProgram(3)
+    search_space = [[-5,1], [-5,1]]
+    bp = BreedingProgram(2)
 
     bp.pop_size = 100
     bp.n_genes = 25
-    bp.problem_type = "Maximize"
+    bp.problem_type = "Minimize"
     bp.selection_method = "Tournament"
     bp.ps = 0.2
     bp.pc = 0.9
     bp.pm = 0.1
     
-    bp.start_evolution(Styblinski_Tang, search_space, max_gen = 1000, eps = 1e-9, n_best = bp.pop_size)
+    bp.start_evolution(Styblinski_Tang, search_space, max_gen = 1000, eps = 1e-9)
 
 
     
