@@ -1,0 +1,34 @@
+\documentclass{article}
+\usepackage{amsmath}
+
+\begin{document}
+
+\title{Population selection methods}
+\author{Your Name}
+\date{\today}
+\maketitle
+
+Boltzman probability distribution
+\[
+    P(i) = \frac{ \exp\left(-\frac{F_i}{T}\right)}{\sum_{j=1}^N \exp\left(-\frac{F_j}{T}\right)}
+\]  
+
+Temperature at generation $n$ 
+\begin{itemize}
+    \item Linear decrease
+        \[
+            T^n = T_0 - n\Delta T
+        \]
+    \item Exponential decrease 
+        \[
+            T^n = T_0(\alpha)^n \quad 0<\alpha<1 
+        \]
+\end{itemize}
+
+\end{document}
+
+
+
+
+
+
