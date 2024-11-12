@@ -25,6 +25,7 @@ def main():
     bp.n_genes = 25
     bp.problem_type = "Minimize"
     bp.selection_method = "Tournament"
+    bp.T0 = 10000
     bp.ps = 0.2
     bp.pc = 0.9
     bp.pm = 0.1

@@ -4,10 +4,16 @@ from mpl_toolkits.mplot3d import Axes3D
 import time
 
 
-def rank_list(list, id):
+def extract_id(list, id):
 	if len(id) > len(list):
-		print("\n\nError in rank_list(): len(id) must be <= len(list)")
+		print("\n\nError in extract_id(): len(id) must be <= len(list)")
 	return [ list[id[i]] for i in range(len(id)) ]
+
+def extract_logic(list, logic_id):
+	if len(logic_id) > len(list):
+		print("\n\nError in extract_id(): len(id) must be <= len(list)")
+	return [ list[i] for i in range(len(logic_id)) if logic_id[i] ]
+
 
 def print_pop(pop, decoded=False):
 	for ind in pop:
@@ -42,15 +48,10 @@ class Population():
 		# pop_size: number of individuals in the population
 		# n_chrom: number of chromosomes (problem variables) per individual
 		# m_genes: number of genes per individual (binary digits)
-		# pop: 3d vector of shape (pop_size, n_chrom, n_genes)
+		# pop: list of individuals in the population
 
-		if len(self.pop) == 0:
-			if log:
-				print("Creating new population...")
-		else:
-			if log:
-				print("Overwriting existing population...")
-			self.pop = []
+
+		self.pop = []
 
 		for i in range(pop_size):
 			self.pop.append( Individual(n_chrom, n_genes, i) )
@@ -71,7 +72,7 @@ class Population():
 		# Note: these methods allow for considering one individual worthy multiple times,
 		#       maintaining the same population size at every generation
 
-		worthy_pop = self.pop.copy()
+		worthy_pop = []
 		current_pop = self.pop.copy()
 		worthy_id = []
 
@@ -90,51 +91,42 @@ class Population():
 					print("Unknown problem type!!")
 					return
 				
-				worthy_pop[i] = self.pop[best_id]
+				worthy_pop.append( self.pop[best_id] )
 				worthy_id.append(best_id)
 
 				if log:
-					print(f"Selected individual {worthy_pop[i].id} out of {[ind.id for ind in rank_list(self.pop, rand_id)]}")
+					print(f"Selected individual {worthy_pop[i].id} out of {[ind.id for ind in extract_id(self.pop, rand_id)]}")
 			
-			self.pop = worthy_pop
 			if log:
 				print("\nSelected population:")
 				self.display_pop(decoded=False)
 
-		# roulette wheel (!!!NOT WORKING!!!)
-		elif method == "Wheel":
-			worthy_count = 0
-			while worthy_count < self.pop_size:
-				for i in range(self.pop_size):
-					rand_id = np.random.choice(self.pop_size, size=max(1, int(ps * self.pop_size)), replace=False)
-					survival_prob = self.fitness[rand_id] / self.fitness[rand_id].sum()
-					shall_live =  np.random.uniform(0,1,size=len(rand_id)) < survival_prob
-
-					selected_pop = self.pop[rand_id].copy()
-					selected_pop = selected_pop[shall_live]
-
-					for k in range(len(selected_pop)):
-						if worthy_count == self.pop_size:
-							break
-						worthy_pop[worthy_count] = selected_pop[k]
-						worthy_count += 1
-						worthy_id.append(rand_id[k])
 
 		elif method == "Boltzman":
-			rand_id = np.random.choice(self.pop_size, size=max(1, int(ps * self.pop_size)), replace=False)
+			rand_id = np.random.choice(self.pop_size, size=max(1, self.pop_size), replace=False)
+			#selected_pop = extract_id(self.pop, rand_id)
+
+			# linear temperature
 			T = self.T0 - self.gen_number
-			survival_prob = np.exp( -self.fitness/T ) / np.exp( -self.fitness/T ).sum()
-			kill = np.random.uniform(0,1,len(rand_id)) > survival_prob
+			survival_prob = np.exp( self.fitness[rand_id]/T )
+			shall_live = np.random.uniform(0,1,len(rand_id)) < survival_prob
+			
+			worthy_pop = extract_logic(self.pop, shall_live)
+			
+			x = np.linspace(self.fitness.min(), self.fitness.max(), self.pop_size)
+			plt.plot(x, np.exp( (x - self.fitness.max())/50 ))
+			plt.show()
+
 			worthy_id = rand_id
 			
 		else:
 			print("Unknown selection method")
 
-
-		if len(self.pop) != self.pop_size:
+		# selection
+		self.pop = worthy_pop
+		if self.pop_size != len(self.pop):
 			self.pop_size = len(self.pop)
-			print(f"\r New population size! {self.pop_size}")
-		
+	
 		return current_pop, worthy_pop, worthy_id
 	
 	def breed(self, method, pc, log=False):
@@ -194,25 +186,23 @@ class BreedingProgram( Population ):
 			crossover_method = "one point",
 			pm = 0.1, pc = 0.9
 	):
-		self.n_chrom = problem_size
 		self.problem_type = problem_type
 		self.selection_method = selection_method
-		self.pop_size = pop_size
-		self.n_genes = n_genes
 		self.ps = ps
 		self.crossover_method = crossover_method
 		self.pm = pm
 		self.pc = pc
 
-		self.pop = []
+		np.random.seed(None)
+		self.create_pop(pop_size, problem_size, n_genes)
 		
 		return
 
 	def display_settings(self, search_space):
-		print("\n\n Genetic Algortithm settings: \n")
+		print("\n\n Genetic Algorithm settings: \n")
 		print(f"Problem type: {self.problem_type} in search space {search_space}\n")
 		print(f"Population of {self.pop_size} individuals")
-		print(f"Chromosomes per individual (problem variables): {self.n_chrom}")
+		print(f"Chromosomes per individual: {self.n_chrom}")
 		print(f"Genes per chromosome: {self.n_genes}")
 		print(f"Selection method: {self.selection_method}, sampling {self.ps*100}% of population")
 		print(f"Crossover method: {self.crossover_method}")
@@ -249,8 +239,7 @@ class BreedingProgram( Population ):
 				ranked_id = np.argsort(self.fitness)
 			else:
 				print("Unknown problem type. Can be either Maximize or Minimize")
-
-			self.pop = rank_list(self.pop, ranked_id)
+			self.pop = extract_id(self.pop, ranked_id)
 			self.fitness = self.fitness[ranked_id]
 
 		if log:
@@ -261,9 +250,6 @@ class BreedingProgram( Population ):
 
 	def start_evolution(self, func, search_space, max_gen = 1000, eps = 1e-6, n_best=10, log=True, sol=None):
 
-		np.random.seed(None)
-
-		self.create_pop(self.pop_size, self.n_chrom, self.n_genes, log)
 
 		if log:
 			self.display_settings(search_space)
@@ -286,6 +272,13 @@ class BreedingProgram( Population ):
 				print(f"\rGeneration {n} of {max_gen}. Population size {self.pop_size}",end='')
 
 			self.select(self.selection_method, self.ps, self.problem_type)
+			if len(self.pop) == 0:
+				print(f"\nPopulation extinct at generation {n}")
+				return
+			elif len(self.pop) == 1:
+				print(f"\nLast standing individual #{self.pop[0].id} at generation {n}")
+				break
+			
 			self.breed(self.crossover_method, self.pc)
 			self.mutate(self.pm)
 
@@ -308,7 +301,8 @@ class BreedingProgram( Population ):
 		if log:
 			np.printoptions(precision=5, suppress=True)
 			print(f"\nSimulation time = {stop_time-start_time:.2f} s")
-			print(f"Optimal individual found after {n} generations")
+			if len(self.pop) > 1:
+				print(f"Optimal individual found after {n} generations")
 			print(f"x = {[x for x in self.pop[best_id].decoded_genome]}, fit = {self.fitness[best_id]}")
 			self.plot_results(func, search_space)
 
