@@ -12,17 +12,11 @@ def print_step(pop, idx):
 
 
 def func(x):
-    return x**2
+    return 
 
-bp = BreedingProgram(1)
+search_space = [[-1,1], [-1,1]]
 
-bp.create_pop(10, 1, 10, T0=10)
-bp.evaluate_finess(func, [[-1,1]])
-print_step(bp.pop, np.arange(bp.pop_size))
-curr, worthy, id = bp.select("Boltzman", 1, "Minimize")
-print(worthy)
-print(id)
-
-
-
-
+bp = BreedingProgram(2)
+bp.problem_type = "Minimize"
+bp.create_pop(20, 2, 10, log=True)
+bp.display_pop()

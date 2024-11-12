@@ -3,10 +3,11 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import time
 
+
 class Population():
 
-	n_generation = 0
 	generations = []
+	pop = []
 
 	def create_pop(self, pop_size, n_chrom, n_genes, T0=1000, log=False):
 		# pop_size: number of individuals in the population
@@ -14,17 +15,26 @@ class Population():
 		# m_genes: number of genes per individual (binary digits)
 		# pop: 3d vector of shape (pop_size, n_chrom, n_genes)
 
-		self.pop = []
+		if len(self.pop) == 0:
+			if log:
+				print("Creating new population...")
+			self.pop = np.zeros(shape = (pop_size, n_chrom, n_genes))
+		else:
+			print("Overwriting existing population...")
+		
 		self.n_genes = n_genes
 		self.n_chrom = n_chrom
 		self.pop_size = pop_size
 		self.T0 = T0
-		self.fitness = np.zeros(self.pop_size)
+		self.fitness = None
+
 		for i in range(pop_size):
 			genome = np.random.randint(2, size=(n_chrom, n_genes))
-			self.pop.append( genome )
-		self.pop = np.array(self.pop)
+			self.pop[i,:,:] = genome
+
 		self.generations.append(self.pop)
+		self.gen_number = 0
+
 		if log:
 			print(f"Generated population of {pop_size} individuals")
 			print(f"number of chromosomes: {n_chrom} with {n_genes} genes")
@@ -77,9 +87,10 @@ class Population():
 
 		elif method == "Boltzman":
 			rand_id = np.random.choice(self.pop_size, size=max(1, int(ps * self.pop_size)), replace=False)
-			T = self.T0 - self.n_generation
+			T = self.T0 - self.gen_number
 			survival_prob = np.exp( -self.fitness/T ) / np.exp( -self.fitness/T ).sum()
 			kill = np.random.uniform(0,1,len(rand_id)) > survival_prob
+			worthy_id = rand_id
 			
 		else:
 			print("Unknown selection method")
@@ -107,16 +118,16 @@ class Population():
 
 		self.generations.append(new_gen)
 		self.pop = new_gen
-		self.n_generation += 1
+		self.gen_number += 1
 	
 	def mutate(self, pm):
 		for i in range(self.pop_size):
 			mutation_prob = (np.random.uniform(0,1,size=(self.n_chrom,self.n_genes)) < pm).astype(int)
 			self.pop[i] = (self.pop[i] + mutation_prob) % 2
 
-
- 
-		
+	def display_pop(self):
+		for i in range(self.pop_size):
+			print(f"#{i+1} {[chrom for chrom in self.pop[i].tolist()]}")
 				
 
 class BreedingProgram( Population ):
@@ -136,7 +147,8 @@ class BreedingProgram( Population ):
 		self.pm = pm
 		self.pc = pc
 
-		self.no_log = False
+		self.pop = np.array([])
+		self.decoded_pop = np.array([])
 		
 		return
 
@@ -161,33 +173,51 @@ class BreedingProgram( Population ):
 			print(f"Search space of incorrect dimension! Number of problem variables: {self.n_chrom}")
 			return
 
-		decoded_pop = []
+		if len(self.decoded_pop) == 0:
+			self.decoded_pop = np.zeros(shape=(self.pop_size, self.n_chrom, self.n_genes))
+
 		for genome in self.pop:
 			decoded_genome = []
 			for i in range(self.n_chrom):
 				bin_to_int = np.array([ genome[i][j]*2**j for j in range(self.n_genes) ]).sum()
 				int_to_dec = search_space[i][0] + bin_to_int*( search_space[i][1] - search_space[i][0] ) / (2**self.n_genes - 1)
 				decoded_genome.append(int_to_dec)
-			decoded_pop.append(decoded_genome)
-
-		return np.array(decoded_pop)
+				self.decoded_pop[i,:,:] = decoded_genome 
+		return self.decoded_pop
 	
-	def display_pop(self, search_space):
-		x = self.decode(search_space)
-		np.set_printoptions(precision=2, suppress=True)
-		print("\n\n")
+	def display_fitness(self):
+		np.set_printoptions(precision=5, suppress=True)
+		print("\n")
 		for i in range(self.pop_size):
-			print(f"{self.pop[i]} \t x = {x[i]}, fit = {self.fitness[i]:.2f}")
-		print("\n\n")
-	
-	def evaluate_finess(self, func, search_space):
-		self.fitness = np.array([func(x) for x in self.decode(search_space)])
+			print(f"#{i+1} {[chrom for chrom in self.pop[i]]}")
+		print("\n")
+
+	def evaluate_finess(self, func, search_space, rank=True, log=False):
+
+		self.decode(search_space)
+		self.fitness = np.array([func(x) for x in self.decoded_pop])
+
+		if rank:
+			if self.problem_type == "Maximize":
+				ranked_id = np.argsort(self.fitness)[::-1]
+			elif self.problem_type == "Minimize":
+				ranked_id = np.argsort(self.fitness)
+			else:
+				print("Unknown problem type. Can be either Maximize or Minimize")
+
+				self.pop = self.pop[ranked_id]
+				self.decoded_pop = self.decoded_pop[ranked_id]
+				self.fitness = self.fitness[ranked_id]
+
+		if log:
+			self.display_fitness()
+
 		return self.fitness
 
-	def start_evolution(self, func, search_space, max_gen = 1000, eps = 1e-6, n_best=10):
+	def start_evolution(self, func, search_space, max_gen = 1000, eps = 1e-6, n_best=10, log=True):
 
 		np.random.seed(None)
-		if not self.no_log:
+		if log:
 			self.display_settings(search_space)
 
 		self.create_pop(self.pop_size, self.n_chrom, self.n_genes)
@@ -205,7 +235,7 @@ class BreedingProgram( Population ):
 		start_time = time.time()
 		while n < max_gen and err > eps:
 			# print_progress(n, max_iter, start_time)
-			if not self.no_log:
+			if log:
 				print(f"\rGeneration {n} of {max_gen}, Population size {self.pop_size}",end='')
 
 			self.select(self.selection_method, self.ps, self.problem_type)
@@ -231,24 +261,18 @@ class BreedingProgram( Population ):
 		elif self.problem_type == "Minimize":
 			best_id = self.fitness.argmin()
 
-		if not self.no_log:
+		if log:
 			np.printoptions(precision=5, suppress=True)
 			print(f"\nSimulation time = {stop_time-start_time:.2f} s")
 			print(f"Optimal individual found after {n} generations")
 			print(f"x = {x[best_id]}, f = {best[-1]}")
-			self.plot_fitness(func, search_space, n_best)
+			self.plot_results(func, search_space, n_best)
 
-	def plot_fitness(self, func, search_space, analytical_sol = None, n_best = 10):
-		# plots fitness function and n_best individuals			
-		decoded_pop = self.decode(search_space)
-		if self.problem_type == "Maximize":
-			sorted_id = np.argsort(self.fitness)[::-1]
-		elif self.problem_type == "Minimize":
-			sorted_id = np.argsort(self.fitness)
-		else:
-			print("Unknown problem type. Can be either Maximize or Minimize")
-		decoded_pop = decoded_pop[sorted_id]
-		sorted_fit = self.fitness[sorted_id]
+	def plot_results(self, func, search_space, analytical_sol = None):
+
+		# make sure population is ranked
+		self.evaluate_finess(func, search_space, rank=True, log=False)
+
 		if len(search_space) == 2:
 			xsurf,ysurf = np.meshgrid(
 				np.linspace(search_space[0][0],search_space[0][1]),
@@ -256,38 +280,35 @@ class BreedingProgram( Population ):
 				indexing="ij"
 			)
 
-			xscatter = decoded_pop[:,0]
-			yscatter = decoded_pop[:,1]
+			xscatter = self.decoded_pop[:,0]
+			yscatter = self.decoded_pop[:,1]
 			
 			fig = plt.figure()
 			ax = fig.add_subplot(111, projection="3d")
 			ax.plot_surface(xsurf, ysurf, func([xsurf, ysurf]),alpha = 0.5)
 			plt.xlabel("x1")
 			plt.ylabel("x2")
-			title_string = f"{self.problem_type}d function in {search_space}\n x = [{xscatter[0]:.5f},{yscatter[0]:.5f}], f(x) = {sorted_fit[0]:.6f}"  
+			title_string = f"{self.problem_type}d function in {search_space}\n x = [{xscatter[0]:.5f},{yscatter[0]:.5f}], f(x) = {self.fitness[0]:.6f}"  
 			if analytical_sol:
 				err_x = [ abs(1-xscatter[0]/analytical_sol[0])*100, abs(1-yscatter[0]/analytical_sol[1])*100]
-				err_f = abs(1-sorted_fit[0]/analytical_sol[2])*100
+				err_f = abs(1-self.fitness[0]/analytical_sol[2])*100
 				title_string += f"\nerr(x) = [{err_x[0]:.5f},{err_x[1]:.5f}]%, err(f) = {err_f:.6f}%"
 			plt.title(title_string)
 			ax.scatter(
-				xscatter[1:n_best],
-				yscatter[1:n_best],
-				sorted_fit[1:n_best],
+				xscatter,
+				yscatter,
+				self.fitness,
 				s = 30,
 				color = "green"
 			)
 			ax.scatter(
 				xscatter[0],
 				yscatter[0],
-				sorted_fit[0],
+				self.fitness[0],
 				s = 150,
 				color = "red"
 			)
 
-		np.set_printoptions(precision=4, suppress=True)
-		print(f"\nBest {n_best} individuals")
-		for i in range(n_best):
-			print(f"#{i+1}: {decoded_pop[i]}, fit = {sorted_fit[i]}")
+		self.display_fitness()
 		plt.show()
 
