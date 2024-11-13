@@ -18,7 +18,7 @@ def Styblinski_Tang(x):
 
 def main():
 
-    search_space = [[-5,1], [-5,1]]
+    search_space = [[-5,5], [-5,5]]
     bp = BreedingProgram(2)
 
     bp.pop_size = 100

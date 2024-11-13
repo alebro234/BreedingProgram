@@ -15,9 +15,6 @@ def extract_logic(list, logic_id):
 	return [ list[i] for i in range(len(logic_id)) if logic_id[i] ]
 
 
-def print_pop(pop, decoded=False):
-	for ind in pop:
-		print(f"#{ind.id} {[chrom.tolist() for chrom in ind.genome]}")
 
 class Individual():
 	def __init__(self, n_chrom, n_genes, id):

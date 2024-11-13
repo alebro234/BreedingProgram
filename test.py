@@ -1,18 +1,17 @@
 import numpy as np
-from GeneticAlgorithm import BreedingProgram, extract_logic
+import GeneticAlgorithm as ga
+import matplotlib.pyplot as plt
 
-def func(vars):
-    x,y = vars
-    return -x**2 -y**2
+f_max = 78
+f_min = 35
+problem_type = "Maximize"
+pop_size = 100
 
-bp = BreedingProgram(2)
-bp.problem_type = "Maximize"
-search_space = [[-1,1], [-1,1]]
-bp.create_pop(1000, 2, 50, log=True)
-
-bp.evaluate_finess(func, search_space, rank=True, log=True)
-print(f"Avg fitness: {bp.fitness.mean()}")
-bp.select("Boltzman", 0.2, "Minimize", log=True)
-bp.breed("one point", 0.9, log=True)
-
-
+f = np.linspace(f_min, 2*f_max, pop_size)
+delta_f = abs(f - f_max)
+kb = 1.380649e-23
+for T in [1, 10, 20]:
+    P = np.exp( -delta_f/T ) / np.exp( -delta_f/T ).sum()
+    plt.plot(f, P)
+plt.legen()
+plt.show()
