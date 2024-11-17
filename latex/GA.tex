@@ -1,0 +1,59 @@
+\documentclass{article} 
+
+\usepackage[utf8]{inputenc} 
+\usepackage[T1]{fontenc}    
+\usepackage[english]{babel} 
+\usepackage{amsmath}        
+\usepackage{amssymb}        
+\usepackage{amsfonts}       
+\usepackage{graphicx}       
+\usepackage{hyperref}       
+\usepackage{geometry}       
+\usepackage{enumitem}       
+\usepackage{titling}
+\usepackage{braket}
+\usepackage{graphicx}
+\usepackage{multicol}
+\usepackage{lipsum}
+
+% Page layout
+\geometry{margin=1cm}      
+\geometry{bottom=2cm}
+\geometry{top=0.5cm}
+\setlength{\parindent}{0pt} 
+\setlength{\parskip}{6pt}   % Space between paragraphs
+% math commands
+\newcommand{\Lagrange}{\mathcal{L}}
+\newcommand{\Hamilton}{\mathcal{H}}
+\newcommand{\deriv}[3][]{\frac{d^{#1} #2}{d #3^{#1}}}
+\newcommand{\pderiv}[3][]{\frac{\partial^{#1} #2}{\partial #3^{#1}}}
+
+\renewcommand{\labelenumii}{\theenumii}
+\renewcommand{\theenumii}{\theenumi.\arabic{enumii}.}
+
+\graphicspath{{../plots}}
+
+\pretitle{\begin{center}\LARGE}
+\posttitle{\par\end{center}\vskip 0.5em}
+
+\title{Object Oriented Genetic Algorithm for N variable optimization}
+\author{Alessandro Brovelli}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section*{Abstract}
+
+\section{Introduction}
+
+\section{Algorithm description and testing}
+
+\section{Parametric analysis}
+\subsection{Applying perturbations}
+\subsection{Tuning with multiprocessing}
+
+\section{Conclusions and future developments}
+
+\end{document}

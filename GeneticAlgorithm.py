@@ -4,18 +4,6 @@ from mpl_toolkits.mplot3d import Axes3D
 import time
 
 
-def extract_id(list, id):
-	if len(id) > len(list):
-		print("\n\nError in extract_id(): len(id) must be <= len(list)")
-	return [ list[id[i]] for i in range(len(id)) ]
-
-def extract_logic(list, logic_id):
-	if len(logic_id) > len(list):
-		print("\n\nError in extract_id(): len(id) must be <= len(list)")
-	return [ list[i] for i in range(len(logic_id)) if logic_id[i] ]
-
-
-
 class Individual():
 	def __init__(self, n_chrom, n_genes, id):
 		self.genome = np.random.randint(2, size=(n_chrom,n_genes))
@@ -38,15 +26,13 @@ class Individual():
 class Population():
 
 	def __init__(self):
-		self.pop = []
-		self.fitness = np.array([])
+		pass
 
-	def create_pop(self, pop_size, n_chrom, n_genes, T0=1000, log=False):
+	def create_pop(self, pop_size, n_chrom, n_genes, T0=3, log=False):
 		# pop_size: number of individuals in the population
 		# n_chrom: number of chromosomes (problem variables) per individual
 		# m_genes: number of genes per individual (binary digits)
 		# pop: list of individuals in the population
-
 
 		self.pop = []
 
@@ -55,105 +41,51 @@ class Population():
 		
 		self.n_genes = n_genes
 		self.n_chrom = n_chrom
-		self.pop_size = pop_size
 		self.gen_number = 0
 		self.T0 = T0
 		self.fitness = np.zeros(pop_size)
+		# lists of best and and average individuals through the generations
+		self.best = []
+		self.avg = []
 
 		if log:
 			print(f"Generated population of {pop_size} individuals, {n_chrom} chromosomes with {n_genes} genes each")
-
-	def select(self, method, ps, problem_type, log=False):
-		# ps: % of individuals that will take part in each selection
-		# self.selection_method = "Tournament" (default), "Wheel"
-		# Note: these methods allow for considering one individual worthy multiple times,
-		#       maintaining the same population size at every generation
-
-		worthy_pop = []
-		current_pop = self.pop.copy()
-		worthy_id = []
-
-		if log:
-			print(f"\n{method} selection")
-
-		# deterministic tournament (best is selected with p = 1)
-		if method == "Tournament":
-			for i in range(self.pop_size):
-				rand_id = np.random.choice(self.pop_size, size=max(1, int(ps * self.pop_size)), replace=False)
-				if problem_type == "Maximize":
-					best_id = rand_id[self.fitness[rand_id].argmax()]
-				elif problem_type == "Minimize":
-					best_id = rand_id[self.fitness[rand_id].argmin()]
-				else:
-					print("Unknown problem type!!")
-					return
-				
-				worthy_pop.append( self.pop[best_id] )
-				worthy_id.append(best_id)
-
-				if log:
-					print(f"Selected individual {worthy_pop[i].id} out of {[ind.id for ind in extract_id(self.pop, rand_id)]}")
-			
-			if log:
-				print("\nSelected population:")
-				self.display_pop(decoded=False)
-
-
-		elif method == "Boltzman":
-			rand_id = np.random.choice(self.pop_size, size=max(1, self.pop_size), replace=False)
-			#selected_pop = extract_id(self.pop, rand_id)
-
-			# linear temperature
-			T = self.T0 - self.gen_number
-			survival_prob = np.exp( self.fitness[rand_id]/T )
-			shall_live = np.random.uniform(0,1,len(rand_id)) < survival_prob
-			
-			worthy_pop = extract_logic(self.pop, shall_live)
-			
-			x = np.linspace(self.fitness.min(), self.fitness.max(), self.pop_size)
-			plt.plot(x, np.exp( (x - self.fitness.max())/50 ))
-			plt.show()
-
-			worthy_id = rand_id
-			
-		else:
-			print("Unknown selection method")
-
-		# selection
-		self.pop = worthy_pop
-		if self.pop_size != len(self.pop):
-			self.pop_size = len(self.pop)
-	
-		return current_pop, worthy_pop, worthy_id
+			self.display_pop(decoded=False)
 	
 	def breed(self, method, pc, log=False):
 
 		if log:
-			print(f"\nBreeding with {method} crossover")
+			print(f"\nBreeding with {method} crossover, pc = {pc}")
 
 		new_gen = []
-		if method == "one point":
-			# take pairs
-			for i in range(0, self.pop_size-1, 2):
-				parent1 = self.pop[i]
-				parent2 = self.pop[i+1]
-				if np.random.uniform(0,1) < pc:
-					child1 = Individual(self.n_chrom, self.n_genes, i) 
-					child2 = Individual(self.n_chrom, self.n_genes, i+1) 
-					# combine each chromosome
-					for j in range(self.n_chrom):
+		# take pairs
+		for i in range(0, len(self.pop)-1, 2):
+			parent1 = self.pop[i]
+			parent2 = self.pop[i+1]
+			# crossover probability
+			if np.random.uniform(0,1) < pc:
+				child1 = Individual(self.n_chrom, self.n_genes, i) 
+				child2 = Individual(self.n_chrom, self.n_genes, i+1) 
+				# combine each chromosome
+				for j in range(self.n_chrom):
+					if method == "one point":
 						pos = np.random.randint(0,self.n_genes-1)
 						child1.genome[j,:] = np.hstack((parent1.genome[j, :pos], parent2.genome[j, pos:]))
 						child2.genome[j,:] = np.hstack((parent2.genome[j, :pos], parent1.genome[j, pos:]))
-					new_gen.append(child1)
-					new_gen.append(child2)
-				else: 
-					# Maintain original parents
-					new_gen.append(parent1)
-					new_gen.append(parent2)
-
-		else:
-			print("Unknown crossover method")
+					elif method == "two point":	
+						positions = np.random.choice(np.arange(1,self.n_genes-1), 2, replace=False)
+						pos1 = positions.min()
+						pos2 = positions.max()
+						child1.genome[j,:] = np.hstack(( parent1.genome[j, :pos1], parent2.genome[j, pos1:pos2], parent1.genome[j, pos2:]))	
+						child2.genome[j,:] = np.hstack(( parent2.genome[j, :pos1], parent1.genome[j, pos1:pos2], parent2.genome[j, pos2:]))	
+					else:
+						print("\r\nUnknown crossover method")
+				new_gen.append(child1)
+				new_gen.append(child2)
+			else: 
+				# Maintain original parents
+				new_gen.append(parent1)
+				new_gen.append(parent2)
 
 		self.pop = new_gen
 		self.gen_number += 1
@@ -190,26 +122,29 @@ class BreedingProgram( Population ):
 		self.pm = pm
 		self.pc = pc
 
+		# Boltzmann selection default parameters (!!! will change to optimized if i can tune)
+		self.T0 = 3
+		self.alpha = 0.8
+
 		np.random.seed(None)
 		self.create_pop(pop_size, problem_size, n_genes)
-		
-		return
 
 	def display_settings(self, search_space):
 		print("\n\n Genetic Algorithm settings: \n")
-		print(f"Problem type: {self.problem_type} in search space {search_space}\n")
-		print(f"Population of {self.pop_size} individuals")
-		print(f"Chromosomes per individual: {self.n_chrom}")
+		print(f"Problem type: {self.n_chrom}D {self.problem_type} in search space {search_space}\n")
+		print(f"Generated population of {len(self.pop)} individuals")
 		print(f"Genes per chromosome: {self.n_genes}")
 		print(f"Selection method: {self.selection_method}, sampling {self.ps*100}% of population")
 		print(f"Crossover method: {self.crossover_method}")
 		print(f"P( Crossover ) = {self.pc}")
-		print(f"P( Mutation ) = {self.pm}\n\n")
+		print(f"P( Mutation ) = {self.pm}")
+		if self.selection_method == "Boltzmann":
+			print("Temperature at generation n")
+			print(f"T(n) = {self.T0} * ({self.alpha})^n\n")
 
 	def decode(self, search_space):
 		# decodes each individual genome from binary into decimal value in seach space provided
-		# search_space = [ [x1_min, x1_max], [x2_min, x2_max], ... ]
-		# decoded_pop: 2d array of shape (pop_size, n_chrom)
+		# search_space: [ [x1_min, x1_max], ... , [xN_min, xN_max] ]
 
 		# check dimensions
 		if np.shape(search_space) != (self.n_chrom, 2):
@@ -223,90 +158,191 @@ class BreedingProgram( Population ):
 				ind.decoded_genome[i] = int_to_dec
 		
 	def evaluate_finess(self, func, search_space, rank=True, log=False):
-
-		self.decode(search_space)
-		for i in range(self.pop_size):
-			self.fitness[i] = func(self.pop[i].decoded_genome)
-			self.pop[i].fitness = self.fitness[i]
-
-		if rank:
-			if self.problem_type == "Maximize":
-				ranked_id = np.argsort(self.fitness)[::-1]
-			elif self.problem_type == "Minimize":
-				ranked_id = np.argsort(self.fitness)
-			else:
-				print("Unknown problem type. Can be either Maximize or Minimize")
-			self.pop = extract_id(self.pop, ranked_id)
-			self.fitness = self.fitness[ranked_id]
+		# func: fitness function
+		# search_space: [ [x1_min, x1_max], ... , [xN_min, xN_max] ]
+		# rank: order the current population from best to worst fitness
 
 		if log:
-			print("\n")
+			print(f"\n Evaluating population fitness, ranking={rank}")
+
+		self.decode(search_space)
+		# fitness array overwritten at every generation
+		self.fitness = np.zeros(len(self.pop))
+		for i in range(len(self.pop)):
+			self.fitness[i] = func(self.pop[i].decoded_genome)
+			# set for all individuals as well
+			self.pop[i].fitness = self.fitness[i]
+
+		if self.problem_type == "Maximize":
+			self.best.append( self.pop[self.fitness.argmax()] )
+			if rank:
+				ranked_id = np.argsort(self.fitness)[::-1]
+				self.pop = extract_id(self.pop, ranked_id)
+				self.fitness = self.fitness[ranked_id]
+		elif self.problem_type == "Minimize":
+			self.best.append( self.pop[self.fitness.argmin()] )
+			if rank:
+				ranked_id = np.argsort(self.fitness)
+				self.pop = extract_id(self.pop, ranked_id)
+				self.fitness = self.fitness[ranked_id]
+		else:
+			print("Unknown problem type. Can be either Maximize or Minimize")
+			return
+			
+		self.avg.append(self.fitness.mean())
+		if log:
 			self.display_pop(decoded=False)
 
 		return self.fitness
 
-	def start_evolution(self, func, search_space, max_gen = 1000, eps = 1e-6, n_best=10, log=True, sol=None):
+	def select(self,ps, log=False):
+		# ps: % of individuals to be picked in each pool
+		# self.selection_method = "Tournament" (default), "Boltzmann"
 
+		worthy_pop = []
+		current_pop = self.pop.copy()
+		worthy_id = []
+
+		if log:
+			print(f"\n{self.selection_method} selection, ps = {ps}")
+
+		# deterministic tournament (best is selected with p = 1)
+		if self.selection_method == "Tournament":
+			for i in range(len(self.pop)):
+				rand_id = np.random.choice(len(self.pop), size=max(1, int(ps * len(self.pop))), replace=False)
+				if self.problem_type == "Maximize":
+					best_id = rand_id[self.fitness[rand_id].argmax()]
+				elif self.problem_type == "Minimize":
+					best_id = rand_id[self.fitness[rand_id].argmin()]
+				else:
+					print("Unknown problem type!!")
+					return
+				
+				worthy_pop.append( self.pop[best_id] )
+				worthy_id.append(best_id)
+
+				if log:
+					print(f"Selected individual {worthy_pop[i].id} out of {[ind.id for ind in extract_id(self.pop, rand_id)]}")
+			
+			if log:
+				print("\nSelected population:")
+				self.display_pop(decoded=False)
+
+
+		elif self.selection_method == "Boltzmann":
+			old_best = self.best[ max(0, len(self.best)-1) ].fitness
+			# Temperature, linear decrase
+			#T = self.T0 - (self.T0/1000)*self.gen_number
+
+			# Temperature, exponential decrease
+			T = self.T0 * (self.alpha)**self.gen_number
+			if log:
+				print(f"Previous best fitness: {old_best}, Temperature = {T}")
+
+			go = True
+			pool_count = 1
+ 			# avoid get stuck in the loop when temperature is too low (pop size will decrease, leading to possible extinction)
+			while go and pool_count < 300:
+				# create pool
+				rand_id = np.random.choice(len(self.pop), size=max(1, int(ps*len(self.pop))), replace=False)
+				selection_pool = extract_id(self.pop, rand_id)
+				pool_fit = self.fitness[rand_id]
+				survival_prob = np.zeros(len(rand_id))
+
+				# Metropolis selection criterion
+				if self.problem_type == "Maximize":
+					for i in range(len(rand_id)):
+						if pool_fit[i] >= old_best:
+							survival_prob[i] = 1  
+						else:
+							survival_prob[i] = np.exp( -abs(old_best - pool_fit[i])/T )
+
+				elif self.problem_type == "Minimize":
+					for i in range(len(rand_id)):
+						if pool_fit[i] <= old_best:
+							survival_prob[i] = 1  
+						else:
+							survival_prob[i] = np.exp( -abs(old_best - pool_fit[i])/T )
+				else:
+					print("Unknown problem type")
+					return
+				
+				# select from pool
+				shall_live = np.random.uniform(0,1,len(rand_id)) < survival_prob
+				for ind in extract_logic(selection_pool, shall_live):
+					worthy_pop.append( ind )
+					worthy_id.append( ind.id )
+					if log:
+						if self.problem_type == "Maximize":
+							print(f"Individual {ind.id}, fit = {ind.fitness} selected with probability {1 if ind.fitness > old_best else np.exp(-abs(old_best-ind.fitness)/T)} from pool #{pool_count}")
+						elif self.problem_type == "Minimize":
+							print(f"Individual {ind.id}, fit = {ind.fitness} selected with probability {1 if ind.fitness < old_best else np.exp(-abs(old_best-ind.fitness)/T)} from pool #{pool_count}")
+					if len(worthy_pop) == len(self.pop):
+						go = False
+						break
+				pool_count += 1
+
+			
+		else:
+			print("Unknown selection method")
+
+		# selection
+		self.pop = worthy_pop
+	
+		return current_pop, worthy_pop, worthy_id
+
+		
+	
+	def start_evolution(self, func, search_space, max_gen = 1000, eps = 1e-9, log=True, plot=True, sol=None):
+		# Runs the GA with the settings saved in the class variables
+		# sol: analytical solution in the form [x1, ..., xN, f(x)] with which to evaluate GA accuracy
+
+		
 
 		if log:
 			self.display_settings(search_space)
 
+		# initial population decoded and assigned fitness value
 		self.evaluate_finess(func, search_space)
-		if self.problem_type == "Maximize":
-			best = [self.fitness.max()]
-		elif self.problem_type == "Minimize":
-			best = [self.fitness.min()]
-		else:
-			print("Unknown problem type. Can be either Maximize or Minimize")
-			return
 		
 		err = eps + 1
 		n = 1
 		start_time = time.time()
 		while n < max_gen and err > eps:
-			# print_progress(n, max_iter, start_time)
-			if log:
-				print(f"\rGeneration {n} of {max_gen}. Population size {self.pop_size}",end='')
 
-			self.select(self.selection_method, self.ps, self.problem_type)
+			if log:
+				print(f"\r\t\tGeneration {n} of {max_gen}, Population size = {len(self.pop)}",end='')
+
+			self.select(self.ps)
+			# check in case of too low temperature in Boltzmann method
 			if len(self.pop) == 0:
 				print(f"\nPopulation extinct at generation {n}")
-				return
+				return self.best[-1]
 			elif len(self.pop) == 1:
 				print(f"\nLast standing individual #{self.pop[0].id} at generation {n}")
-				break
+				self.pop[0].display_genome(decoded=True)
+				return self.best[-1]
 			
 			self.breed(self.crossover_method, self.pc)
 			self.mutate(self.pm)
-
+			# evaluate new generation fitness
 			self.evaluate_finess(func, search_space)
-			if self.problem_type == "Maximize":
-				best.append( self.fitness.max() )
-			elif self.problem_type == "Minimize":
-				best.append( self.fitness.min() )
-
-			err = abs( best[n] - best[n-1] )
+			err = abs( self.best[-1].fitness - self.best[-2].fitness )
 			n += 1
 
 		stop_time = time.time()
-
-		if self.problem_type == "Maximize":
-			best_id = self.fitness.argmax()
-		elif self.problem_type == "Minimize":
-			best_id = self.fitness.argmin()
 
 		if log:
 			np.printoptions(precision=5, suppress=True)
 			print(f"\nSimulation time = {stop_time-start_time:.2f} s")
 			if len(self.pop) > 1:
 				print(f"Optimal individual found after {n} generations")
-			print(f"x = {[x for x in self.pop[best_id].decoded_genome]}, fit = {self.fitness[best_id]}")
+			print(f"x = {[x for x in self.best[-1].decoded_genome]}, fit = {self.best[-1].fitness}\n")
+		if plot:
 			self.plot_results(func, search_space)
 
 	def plot_results(self, func, search_space, sol = None):
-
-		# make sure population is ranked
-		# self.evaluate_finess(func, search_space, rank=True, log=False)
+		# population should be ranked
 
 		if len(search_space) == 2:
 			xsurf,ysurf = np.meshgrid(
@@ -318,21 +354,21 @@ class BreedingProgram( Population ):
 			xscatter = [ind.decoded_genome[0] for ind in self.pop]
 			yscatter = [ind.decoded_genome[1] for ind in self.pop]
 			
-			fig = plt.figure()
-			ax = fig.add_subplot(111, projection="3d")
+			fig = plt.figure(figsize=(12,6))
+			ax = fig.add_subplot(121, projection="3d")
 			ax.plot_surface(xsurf, ysurf, func([xsurf, ysurf]),alpha = 0.5)
 			plt.xlabel("x1")
 			plt.ylabel("x2")
-			title_string = f"{self.problem_type}d function in {search_space}\n x = [{xscatter[0]:.5f},{yscatter[0]:.5f}], f(x) = {self.fitness[0]:.6f}"  
+			title_string = f"{self.problem_type}d function in {search_space}\n x = [{xscatter[0]:.5f},{yscatter[0]:.5f}], f(x) = {self.best[-1].fitness:.6f}"  
 			if sol:
 				err_x = [ abs(1-xscatter[0]/sol[0])*100, abs(1-yscatter[0]/sol[1])*100]
-				err_f = abs(1-self.fitness[0]/sol[2])*100
+				err_f = abs(1-self.fitness[-1,0]/sol[2])*100
 				title_string += f"\nerr(x) = [{err_x[0]:.5f},{err_x[1]:.5f}]%, err(f) = {err_f:.6f}%"
 			plt.title(title_string)
 			ax.scatter(
-				xscatter,
-				yscatter,
-				self.fitness,
+				xscatter[1:],
+				yscatter[1:],
+				self.fitness[1:],
 				s = 30,
 				color = "green"
 			)
@@ -344,7 +380,26 @@ class BreedingProgram( Population ):
 				color = "red"
 			)
 
-		print(f"\n(id) Population at last generation")
-		self.display_pop()
-		plt.show()
+			ax2 = fig.add_subplot(122)
+			ax2.plot(range(self.gen_number+1), [ind.fitness for ind in self.best])
+			ax2.scatter(range(self.gen_number+1), [ind.fitness for ind in self.best], s=5)
+			# ax2.scatter(range(self.gen_number+1), self.avg, s=5, label="avg")
+			ax2.set_xlabel = "generation"
+			ax2.set_ylabel = "f(x)"
+			ax2.set_title("Generational best fitness")
+			ax2.grid()
+			# print(f"\n(id) Population at last generation")
+			# self.display_pop()
+			plt.show()
 
+
+# utils
+def extract_id(list, id):
+	if len(id) > len(list):
+		print("\n\nError in extract_id(): len(id) must be <= len(list)")
+	return [ list[id[i]] for i in range(len(id)) ]
+
+def extract_logic(list, logic_id):
+	if len(logic_id) > len(list):
+		print("\n\nError in extract_id(): len(id) must be <= len(list)")
+	return [ list[i] for i in range(len(logic_id)) if logic_id[i] ]
