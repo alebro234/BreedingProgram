@@ -50,10 +50,8 @@ def self_tune_tournament(vars):
 
 if __name__ == "__main__":
      
-    
-    cpus = 8
-    if cpus > multiprocessing.cpu_count():
-        cpus = multiprocessing.cpu_count()
+  
+    cpus = multiprocessing.cpu_count()
 
     n_max = 5*cpus # keep multiple of cpus
 

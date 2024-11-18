@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import time
+import multiprocessing
 
 
 class Individual():
@@ -126,6 +127,9 @@ class BreedingProgram( Population ):
 		self.T0 = 3
 		self.alpha = 0.8
 
+		# clock
+		self.clock = Clock()
+
 		np.random.seed(None)
 		self.create_pop(pop_size, problem_size, n_genes)
 
@@ -194,84 +198,97 @@ class BreedingProgram( Population ):
 			self.display_pop(decoded=False)
 
 		return self.fitness
+	
+	def extract_batch(self, id):
+		return [ self.pop[id[k]] for k in range(len(id)) ]
+	
+	def tournament_selection(self, batch):
+		if self.problem_type == "Maximize":
+			best_id = np.argmax([ ind.fitness for ind in batch])
+		elif self.problem_type == "Minimize":
+			best_id = np.argmin([ ind.fitness for ind in batch])
+		else:
+			print("Unknown problem type!!")
+			return None
+		return batch[best_id]
 
-	def select(self,ps, log=False):
+	def select(self,ps, log=False, cpus=1):
 		# ps: % of individuals to be picked in each pool
 		# self.selection_method = "Tournament" (default), "Boltzmann"
 
+		# don't use more cpus than you have
+		cpus = min(cpus, multiprocessing.cpu_count())
+
 		worthy_pop = []
 		current_pop = self.pop.copy()
-		worthy_id = []
 
 		if log:
 			print(f"\n{self.selection_method} selection, ps = {ps}")
 
 		# deterministic tournament (best is selected with p = 1)
-		if self.selection_method == "Tournament":
-			for i in range(len(self.pop)):
-				rand_id = np.random.choice(len(self.pop), size=max(1, int(ps * len(self.pop))), replace=False)
-				if self.problem_type == "Maximize":
-					best_id = rand_id[self.fitness[rand_id].argmax()]
-				elif self.problem_type == "Minimize":
-					best_id = rand_id[self.fitness[rand_id].argmin()]
-				else:
-					print("Unknown problem type!!")
-					return
-				
-				worthy_pop.append( self.pop[best_id] )
-				worthy_id.append(best_id)
+		with multiprocessing.Pool(cpus) as pool:
+			if self.selection_method == "Tournament":
+				for i in range(0, len(self.pop), cpus):
+					batches = []
+					for k in range(cpus):
+						rand_id = np.random.choice(len(self.pop), size=max(1, int(ps * len(self.pop))), replace=False)
+						batches.append( self.extract_batch(rand_id) )
 
-				if log:
-					print(f"Selected individual {worthy_pop[i].id} out of {[ind.id for ind in extract_id(self.pop, rand_id)]}")
+					res = pool.map(self.tournament_selection, batches)
+
+					worthy_pop.extend( res )
+
+					if log:
+						print(f"Selected individual {worthy_pop[i].id} out of {[ind.id for ind in extract_id(self.pop, rand_id)]}")
 			
 			if log:
 				print("\nSelected population:")
 				self.display_pop(decoded=False)
 
 
-		elif self.selection_method == "Boltzmann":
-			old_best = self.best[ max(0, len(self.best)-1) ].fitness
-			# Temperature, linear decrase
-			#T = self.T0 - (self.T0/1000)*self.gen_number
+			elif self.selection_method == "Boltzmann":
+				old_best = self.best[ max(0, len(self.best)-1) ].fitness
+				# Temperature, linear decrase
+				#T = self.T0 - (self.T0/1000)*self.gen_number
 
-			# Temperature, exponential decrease
-			T = self.T0 * (self.alpha)**self.gen_number
-			if log:
-				print(f"Previous best fitness: {old_best}, Temperature = {T}")
+				# Temperature, exponential decrease
+				T = self.T0 * (self.alpha)**self.gen_number
+				if log:
+					print(f"Previous best fitness: {old_best}, Temperature = {T}")
 
-			go = True
-			pool_count = 1
- 			# avoid get stuck in the loop when temperature is too low (pop size will decrease, leading to possible extinction)
-			while go and pool_count < 300:
-				# create pool
-				rand_id = np.random.choice(len(self.pop), size=max(1, int(ps*len(self.pop))), replace=False)
-				selection_pool = extract_id(self.pop, rand_id)
-				pool_fit = self.fitness[rand_id]
-				survival_prob = np.zeros(len(rand_id))
+				go = True
+				pool_count = 1
+				# avoid get stuck in the loop when temperature is too low (pop size will decrease, leading to possible extinction)
+				while go and pool_count < 300:
+					# create pool
+					rand_id = np.random.choice(len(self.pop), size=max(1, int(ps*len(self.pop))), replace=False)
+					selection_pool = extract_id(self.pop, rand_id)
+					pool_fit = self.fitness[rand_id]
+					survival_prob = np.zeros(len(rand_id))
 
-				# Metropolis selection criterion
-				if self.problem_type == "Maximize":
-					for i in range(len(rand_id)):
-						if pool_fit[i] >= old_best:
-							survival_prob[i] = 1  
-						else:
-							survival_prob[i] = np.exp( -abs(old_best - pool_fit[i])/T )
+					# Metropolis selection criterion
+					if self.problem_type == "Maximize":
+						for i in range(len(rand_id)):
+							if pool_fit[i] >= old_best:
+								survival_prob[i] = 1  
+							else:
+								survival_prob[i] = np.exp( -abs(old_best - pool_fit[i])/T )
 
-				elif self.problem_type == "Minimize":
-					for i in range(len(rand_id)):
-						if pool_fit[i] <= old_best:
-							survival_prob[i] = 1  
-						else:
-							survival_prob[i] = np.exp( -abs(old_best - pool_fit[i])/T )
-				else:
-					print("Unknown problem type")
-					return
+					elif self.problem_type == "Minimize":
+						for i in range(len(rand_id)):
+							if pool_fit[i] <= old_best:
+								survival_prob[i] = 1  
+							else:
+								survival_prob[i] = np.exp( -abs(old_best - pool_fit[i])/T )
+					else:
+						print("Unknown problem type")
+						return
 				
 				# select from pool
 				shall_live = np.random.uniform(0,1,len(rand_id)) < survival_prob
 				for ind in extract_logic(selection_pool, shall_live):
 					worthy_pop.append( ind )
-					worthy_id.append( ind.id )
+
 					if log:
 						if self.problem_type == "Maximize":
 							print(f"Individual {ind.id}, fit = {ind.fitness} selected with probability {1 if ind.fitness > old_best else np.exp(-abs(old_best-ind.fitness)/T)} from pool #{pool_count}")
@@ -283,13 +300,13 @@ class BreedingProgram( Population ):
 				pool_count += 1
 
 			
-		else:
-			print("Unknown selection method")
+			else:
+				print("Unknown selection method")
 
 		# selection
 		self.pop = worthy_pop
 	
-		return current_pop, worthy_pop, worthy_id
+		return current_pop, worthy_pop
 
 		
 	
@@ -304,16 +321,23 @@ class BreedingProgram( Population ):
 
 		# initial population decoded and assigned fitness value
 		self.evaluate_finess(func, search_space)
+
+		fit_time = []
+		sel_time = []
+		breed_time = []
+		mutate_time = []
 		
 		err = eps + 1
 		n = 1
-		start_time = time.time()
+		self.clock.start()
 		while n < max_gen and err > eps:
 
 			if log:
-				print(f"\r\t\tGeneration {n} of {max_gen}, Population size = {len(self.pop)}",end='')
+				print(f"\r\t\tGeneration {n} of {max_gen}, Population size = {len(self.pop)}  ",end='')
 
-			self.select(self.ps)
+			self.select(self.ps, cpus=4)
+			self.clock.stop()
+			sel_time.append(self.clock.elapsed_time)
 			# check in case of too low temperature in Boltzmann method
 			if len(self.pop) == 0:
 				print(f"\nPopulation extinct at generation {n}")
@@ -323,21 +347,35 @@ class BreedingProgram( Population ):
 				self.pop[0].display_genome(decoded=True)
 				return self.best[-1]
 			
+			self.clock.start()
 			self.breed(self.crossover_method, self.pc)
+			self.clock.stop()
+			breed_time.append(self.clock.elapsed_time)
+			
+			self.clock.start()
 			self.mutate(self.pm)
+			self.clock.stop()
+			mutate_time.append(self.clock.elapsed_time)
 			# evaluate new generation fitness
+			self.clock.start()
 			self.evaluate_finess(func, search_space)
+			self.clock.stop()
+			fit_time.append(self.clock.elapsed_time)
 			err = abs( self.best[-1].fitness - self.best[-2].fitness )
 			n += 1
 
-		stop_time = time.time()
 
 		if log:
 			np.printoptions(precision=5, suppress=True)
-			print(f"\nSimulation time = {stop_time-start_time:.2f} s")
+			print(f"\nSimulation time = {sum(self.clock.time_vec):.2f} s")
 			if len(self.pop) > 1:
 				print(f"Optimal individual found after {n} generations")
 			print(f"x = {[x for x in self.best[-1].decoded_genome]}, fit = {self.best[-1].fitness}\n")
+
+			print(f"Avg fit time: {np.mean(fit_time)}")
+			print(f"Avg sel time: {np.mean(sel_time)}")
+			print(f"Avg breed time: {np.mean(breed_time)}")
+			print(f"Avg mutate time: {np.mean(mutate_time)}")
 		if plot:
 			self.plot_results(func, search_space)
 
@@ -403,3 +441,32 @@ def extract_logic(list, logic_id):
 	if len(logic_id) > len(list):
 		print("\n\nError in extract_id(): len(id) must be <= len(list)")
 	return [ list[i] for i in range(len(logic_id)) if logic_id[i] ]
+
+
+# manage time
+class Clock():
+	def __init__(self):
+		self.start_time = 0
+		self.stop_time = 0
+		self.elapsed_time = 0
+		self.time_vec = []
+
+	def start(self):
+		self.start_time = time.time()
+
+	def split(self):
+		self.time_vec.append( time.time() - self.start_time )
+
+	def stop(self):
+		self.stop_time = time.time()
+		self.elapsed_time =  self.stop_time - self.start_time # s
+		self.time_vec.append( self.elapsed_time )
+
+	def display_elapsed(self, message):
+		print(message + f":{self.elapsed_time}")
+
+	def display_splits(self):
+		print(f"Splits: {self.time_vec[:-1]}, total time = {self.time_vec[-1]}")
+
+	def reset(self):
+		self.__init__()

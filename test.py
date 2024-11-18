@@ -1,5 +1,13 @@
-import itertools
-import numpy as np
+from GeneticAlgorithm import BreedingProgram, Clock
 
-for i in range(0, 20+4, 4):
-    print(i)
+clock = Clock()
+
+clock.start()
+a = []
+for i in range(1000000):
+    a.append(i)
+
+clock.stop()
+clock.display_elapsed()
+clock.reset()
+clock.display_elapsed()
