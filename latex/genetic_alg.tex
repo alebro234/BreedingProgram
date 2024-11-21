@@ -1,4 +1,4 @@
-\documentclass{article} 
+\documentclass[twocolumn]{article} 
 
 \usepackage[utf8]{inputenc} 
 \usepackage[T1]{fontenc}    
@@ -13,7 +13,7 @@
 \usepackage{titling}
 \usepackage{braket}
 \usepackage{graphicx}
-\usepackage{multicol}
+% \usepackage{multicol}
 \usepackage{lipsum}
 
 % Page layout
@@ -42,18 +42,26 @@
 
 \begin{document}
 
+% Title
+\twocolumn[
+\begin{@twocolumnfalse}
 \maketitle
 
-\section*{Abstract}
+% Abstract
+\begin{abstract}
+An object oriented genetic algorithm was developed in Python. The scope of the code is to optimize (maximize or minimize) a $N \geq 1$ variable fitness function in a provided seach space. It can employ a set of two selection, crossover and mutation methods, set by the user. The algorithm was tested on a 2 dimensional function (Styblinsky-Tang) and a 3 dimensional one. For the former function, settings were tuned for optimal performance with various population sizes, for each combination of evolutionary methods. Finally, a perturbative analysis was carried out to verify the stability around the optimized parameters.
+\end{abstract}
+\vspace{1em}
+\end{@twocolumnfalse}
+]
 
-\section{Introduction}
 
-\section{Algorithm description and testing}
+\section{Algorithm description}
+
+\section{Algorithm testing}
 
 \section{Parametric analysis}
-\subsection{Applying perturbations}
-\subsection{Tuning with multiprocessing}
 
-\section{Conclusions and future developments}
+\section{Conclusions and further developments}
 
 \end{document}

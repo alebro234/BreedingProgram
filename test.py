@@ -1,5 +1,2 @@
-import itertools
-import numpy as np
-
-for i in range(0, 20+4, 4):
+for i in range(0, 10000, 8):
     print(i)
