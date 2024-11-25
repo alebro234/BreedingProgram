@@ -28,11 +28,11 @@ class Individual():
         self.decoded_genome = np.zeros(n_chrom)
 
     def mutate(self, pm, scheme):
-        if scheme == "bit-flip":
+        if scheme == "flip":
             mutation_prob = (np.random.uniform(
                 0, 1, size=self.genome.shape) < pm).astype(int)
             self.genome = (self.genome + mutation_prob) % 2
-        elif scheme == "bit-swap":
+        elif scheme == "swap":
             n_genes = self.genome.shape[1]
             for i in range(len(self.genome)):
                 for j in range(1, n_genes, 2):
@@ -97,13 +97,13 @@ class Population():
                 child2 = Individual(self.n_chrom, self.n_genes, i+1)
                 # combine each chromosome
                 for j in range(self.n_chrom):
-                    if method == "one-point":
+                    if method == "1p":
                         pos = np.random.randint(0, self.n_genes-1)
                         child1.genome[j, :] = np.hstack(
                             (parent1.genome[j, :pos], parent2.genome[j, pos:]))
                         child2.genome[j, :] = np.hstack(
                             (parent2.genome[j, :pos], parent1.genome[j, pos:]))
-                    elif method == "two-point":
+                    elif method == "2p":
                         positions = np.random.choice(
                             np.arange(1, self.n_genes-1), 2, replace=False)
                         pos1 = positions.min()
@@ -147,8 +147,8 @@ class BreedingProgram(Population):
         problem_size, problem_type="maximize",
         pop_size=100, n_genes=25,
         selection_method="tournament", ps=0.2,
-        crossover_method="one-point", pc=0.9,
-        mutation_scheme="bit-flip", pm=0.1
+        crossover_method="1p", pc=0.9,
+        mutation_scheme="flip", pm=0.1
     ):
         self.pop_size = pop_size
         self.n_chrom = problem_size
@@ -450,3 +450,34 @@ class BreedingProgram(Population):
             # print(f"\n(id) Population at last generation")
             # self.display_pop()
             plt.show()
+
+
+def Styblinski_Tang(x):
+    return (x[0]**4 - 16*x[0]**2 + 5*x[0] + x[1]**4 - 16*x[1]**2 + 5*x[1])/2
+# Minimum @ x = (-2.9035, -2.9035), f = -78.3323
+
+# to be used in tuning and perturbative analysis
+
+
+def run_breeder(settings):
+    pop_size, n_genes, sel, cross, mut, ps, pc, pm, T0, alpha, max_gen = settings
+
+    # try:
+    bp = BreedingProgram(2, "minimize", int(pop_size), int(n_genes))
+    bp.selection_method = sel
+    bp.crossover_method = cross
+    bp.mutation_scheme = mut
+    bp.ps = ps
+    bp.pc = pc
+    bp.pm = pm
+    bp.T0 = T0
+    bp.alpha = alpha
+
+    bp.start_evolution(Styblinski_Tang, [
+        [-5, 5], [-5, 5]], max_gen=max_gen, log=False, plot=False)
+
+    return bp.best[-1]
+
+    # except Exception as e:
+    #     print(f"Error in run_breeder with params {settings}: {e}")
+    #     return None

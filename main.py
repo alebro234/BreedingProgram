@@ -16,7 +16,7 @@ def Styblinski_Tang(x):
 # Minimum @ x = (-2.9035, -2.9035), f = -78.3323
 
 
-def main():
+if __name__ == "__main__":
     # 3d function search space
     # search_space = [[-2*np.pi,2*np.pi], [-2*np.pi,2*np.pi], [-2,2]]
 
@@ -24,20 +24,16 @@ def main():
     search_space = [[-5, 5], [-5, 5]]
 
     bp = BreedingProgram(problem_size=2)
-    bp.pop_size = 500
+    bp.pop_size = 250
     bp.n_genes = 25
     bp.problem_type = "minimize"
     bp.selection_method = "entropy"
-    bp.T0 = 2.6
-    bp.alpha = 0.75
-    bp.crossover_method = "two-point"
-    bp.mutation_scheme = "bit-swap"
+    bp.T0 = 3.6
+    bp.alpha = 0.55
+    bp.crossover_method = "1p"
+    bp.mutation_scheme = "swap"
     bp.ps = 0.3
     bp.pc = 0.9
     bp.pm = 0.08
     bp.start_evolution(Styblinski_Tang, search_space,
-                       eps=1e-12, log=True, plot=True)
-
-
-if __name__ == "__main__":
-    main()
+                       max_gen=250, eps=1e-9, log=True, plot=True)
