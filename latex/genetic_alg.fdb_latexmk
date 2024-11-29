@@ -1,5 +1,13 @@
 # Fdb version 4
-["pdflatex"] 1732531207.05742 "genetic_alg.tex" "genetic_alg.pdf" "genetic_alg" 1732531207.74882 0
+["bibtex genetic_alg"] 0 "genetic_alg.aux" "genetic_alg.bbl" "genetic_alg" 1732794413.50819 -1
+  "./ref.bib" 1732738471.26647 224 672321015bcb87e4deddffb4816d3643 ""
+  "/usr/share/texlive/texmf-dist/bibtex/bst/base/plain.bst" 1292289607 20613 bd3fbfa9f64872b81ac57a0dd2ed855f ""
+  "genetic_alg.aux" 1732794413.18278 2293 cdb20a043aed53fd909202bef2eed8aa "pdflatex"
+  (generated)
+  "genetic_alg.bbl"
+  "genetic_alg.blg"
+  (rewritten before read)
+["pdflatex"] 1732794412.62852 "genetic_alg.tex" "genetic_alg.pdf" "genetic_alg" 1732794413.50882 0
   "/etc/texmf/web2c/texmf.cnf" 1720715720.39582 475 c0e671620eb5563b2130f56340a5fde8 ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/ecbx0900.tfm" 1136768653 3584 1a7de6c99457381c64abc1a7c545505f ""
@@ -42,6 +50,7 @@
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb" 1248133631 32762 224316ccc9ad3ca0423a14971cfa7fc1 ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr9.pfb" 1248133631 33993 9b89b85fd2d9df0482bd47194d1d3bf3 ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb" 1248133631 32569 5e5ddc8df908dea60932f3c484a54c0d ""
+  "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb" 1248133631 32716 08e384dc442464e7285e891af9f45947 ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb" 1248133631 32442 c975af247b6702f7ca0c299af3616b80 ""
   "/usr/share/texlive/texmf-dist/tex/context/base/mkii/supp-pdf.mkii" 1461363279 71627 94eb9990bed73c364d7f53f960cc8c5b ""
   "/usr/share/texlive/texmf-dist/tex/generic/atbegshi/atbegshi.sty" 1575674566 24708 5584a51a7101caf7e6bbf1fc27d8f7b1 ""
@@ -122,9 +131,11 @@
   "/usr/share/texmf/web2c/texmf.cnf" 1707919699 40399 f2c302f7d2af602abb742093540a5834 ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1730812188.02361 5472669 54eaf61a88b6b7896ebd0dac973cb29c ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1730812281 8212363 853872add298e3bb0254c4038e262075 ""
-  "genetic_alg.aux" 1732531207.66181 1562 29db3c578c89b27df9be695dac701862 "pdflatex"
-  "genetic_alg.out" 1732531207.66181 1321 e69d9f68ca9ff045f39d8c0c9f9c6c28 "pdflatex"
-  "genetic_alg.tex" 1732531206.05887 5864 df342d6e2822d1ed860af9d2b533cbc1 ""
+  "crossover.png" 1732739045.00556 53088 f109ef0cd3bfe6639f6eeeed8230e99e ""
+  "genetic_alg.aux" 1732794413.18278 2293 cdb20a043aed53fd909202bef2eed8aa "pdflatex"
+  "genetic_alg.bbl" 1732739296.47047 194 8ddf221fc2d4b86c9a4d3f69dd8f0e3a "bibtex genetic_alg"
+  "genetic_alg.out" 1732794413.18378 1551 5076db4935dfbc8f4e9b2c8025e83eb3 "pdflatex"
+  "genetic_alg.tex" 1732794411.73076 9566 d7bbccc50052e263e1b0a77738d4debc ""
   (generated)
   "genetic_alg.aux"
   "genetic_alg.log"

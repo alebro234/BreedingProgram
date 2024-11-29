@@ -1,9 +1,11 @@
 import numpy as np
 import json
-import matplotlib.pyplot as plt
-from GeneticAlgorithm import run_breeder
 import time
 import argparse
+import sys
+
+sys.path.append("/home/ale234/github/BreedingProgram")
+from BreedingProgram import run_breeder   # noqa
 
 
 def settings_to_input(dictionary, id):

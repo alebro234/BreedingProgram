@@ -1,9 +1,9 @@
-from GeneticAlgorithm import BreedingProgram
+from BreedingProgram import Breeder
 import numpy as np
 
 
-def func2d(x):
-    return 0.2*x[1]**2 + 0.2*x[0]**2 + 2*np.sin(x[0])
+def func1d(x):
+    return -abs(np.cos(x) - 0.25*x)
 
 
 def func3d(x):
@@ -17,23 +17,28 @@ def Styblinski_Tang(x):
 
 
 if __name__ == "__main__":
+
+    # 1d function search space
+    # search_space = ( (1, 3) )
+
     # 3d function search space
-    # search_space = [[-2*np.pi,2*np.pi], [-2*np.pi,2*np.pi], [-2,2]]
+    # search_space = ((-2*np.pi, 2*np.pi), (-2*np.pi, 2*np.pi), (-2, 2))
 
     # Styblinski_Tang search space
-    search_space = [[-5, 5], [-5, 5]]
+    search_space =((-5, 5), (-5, 5))
 
-    bp = BreedingProgram(problem_size=2)
-    bp.pop_size = 250
-    bp.n_genes = 25
-    bp.problem_type = "minimize"
-    bp.selection_method = "entropy"
-    bp.T0 = 3.6
-    bp.alpha = 0.55
-    bp.crossover_method = "1p"
-    bp.mutation_scheme = "swap"
-    bp.ps = 0.3
-    bp.pc = 0.9
-    bp.pm = 0.08
-    bp.start_evolution(Styblinski_Tang, search_space,
-                       max_gen=250, eps=1e-9, log=True, plot=True)
+    sol = (-2.90353, -2.90353, -78.3323)
+
+    breeder = Breeder(problem_size=2)
+    breeder.pop_size = 250
+    breeder.n_genes = 25
+    breeder.problem_type = "minimize"
+    breeder.selection_method = "tournament"
+    breeder.T0 = 3.6
+    breeder.alpha = 0.55
+    breeder.crossover_method = "2p"
+    breeder.mutation_method = "flip"
+    breeder.ps = 0.4954982146671957
+    breeder.pc = 0.5606836146122623
+    breeder.pm = 0.09525101474044007
+    breeder.start_evolution(Styblinski_Tang, search_space, cpus=1, max_gen=250, eps=1e-9, log=True, plot=True, sol=sol)

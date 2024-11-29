@@ -9,7 +9,7 @@ import itertools
 from collections import defaultdict
 
 sys.path.append("/home/ale234/github/BreedingProgram")
-from GeneticAlgorithm import run_breeder, extract_logic  # noqa
+from BreedingProgram import run_breeder, extract_logic  # noqa
 
 
 def group_by_key(dict_list, group_keys, avg=True):
@@ -69,53 +69,45 @@ if __name__ == "__main__":
         required=True,
         help="Path to the output JSON file where results will be saved."
     )
-    parser.add_argument(
-        "--mode",
-        type=str,
-        choices=["w", "a"],
-        default="w",
-        help="Mode for the output file: 'w' to overwrite (default), or 'a' to append to the file."
-    )
     args = parser.parse_args()
 
     cpus = args.cpus
     out_file = args.o
-    mode = args.mode
 
     # 1: define combinations of settings
 
     # TOURNAMENT TUNING
-    # pop_size = [100, 250, 450]
-    # n_genes = [25]
-    # sel = ["tournament"]
-    # cross = ["1p", "2p"]
-    # mut = ["flip", "swap"]
-    # ps = [0.1, 0.2, 0.3, 0.4, 0.5]
-    # pc = [0.5, 0.6, 0.7, 0.8, 0.9]
-    # pm = [0.03, 0.05, 0.07, 0.09, 1.1]
-    # max_gen = [350]
-    # T0 = [0]
-    # alpha = [0]
-
-    # ENTROPY TUNING
     pop_size = [100, 250, 450]
-    n_genes = [25]
-    sel = ["entropy"]
+    n_genes = [15, 25]
+    sel = ["tournament"]
     cross = ["1p", "2p"]
     mut = ["flip", "swap"]
-    ps = [0.2, 0.3, 0.4]
-    pc = [0.7, 0.8, 0.9]
-    pm = [0.05, 0.07, 0.09]
-    max_gen = [350]
-    T0 = [1, 2, 3, 4, 5]
-    alpha = [0.5, 0.6, 0.7, 0.8, 0.9]
+    ps = [0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
+    pc = [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
+    pm = [0.05, 0.06, 0.07, 0.08, 0.09, 1, 1.1]
+    max_gen = [300]
+    T0 = [0]
+    alpha = [0]
+
+    # ENTROPY TUNING
+    # pop_size = [200, 340, 500]
+    # n_genes = [15, 25]
+    # sel = ["entropy"]
+    # cross = ["1p", "2p"]
+    # mut = ["flip", "swap"]
+    # ps = [0.2, 0.3, 0.4, 0.5]
+    # pc = [0.6, 0.7, 0.8, 0.9]
+    # pm = [0.03, 0.05, 0.07, 0.09]
+    # max_gen = [350]
+    # T0 = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5]
+    # alpha = [0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9]
 
     # each perm will be input to run_breeder()
     perm = list(itertools.product(
         *[pop_size, n_genes, sel, cross, mut, ps, pc, pm, T0, alpha, max_gen]))
 
-    # number of tasks that will be executed after the main loop
-    ex_after = len(perm) % cpus
+    # last batch size if len(perm) is not divisible by cpus
+    rest = len(perm) % cpus
 
     # 2: evaluate all combinations with multiprocessing
     best = []
@@ -130,9 +122,15 @@ if __name__ == "__main__":
             print_progress(n, len(perm), start_time)
 
     # Last batch
-    if ex_after > 0:
-        with multiprocessing.Pool(ex_after) as pool:
-            batch = perm[-ex_after:]
+    if rest > 0:
+        with multiprocessing.Pool(rest) as pool:
+            batch = perm[-rest:]
+            res = pool.map(run_breeder, batch)
+            best.extend(res)
+            print_progress(len(perm), len(perm), start_time)
+    else:
+        with multiprocessing.Pool(cpus) as pool:
+            batch = perm[-cpus:]
             res = pool.map(run_breeder, batch)
             best.extend(res)
             print_progress(len(perm), len(perm), start_time)
@@ -157,15 +155,15 @@ if __name__ == "__main__":
                     optimal.append(perm[n])
                 print_progress(n, len(perm), start_time)
     else:
-        ex_after = N % cpus
+        rest = N % cpus
         with multiprocessing.Pool() as pool:
             start_time = time.time()
             for n in range(len(perm)):
                 res = []
-                for i in range(0, N - ex_after, cpus):
+                for i in range(0, N - rest, cpus):
                     res.append(pool.map(run_breeder, [perm[n]]*cpus))
-                if ex_after > 0:
-                    res.append(pool.map(run_breeder, [perm[n]]*ex_after))
+                if rest > 0:
+                    res.append(pool.map(run_breeder, [perm[n]]*rest))
                 if all([r.fitness < -78.3322 for r in res]):
                     optimal.append(perm[n])
                 print_progress(n, len(perm), start_time)
@@ -200,6 +198,6 @@ if __name__ == "__main__":
         avg=False
     )
 
-    with open(out_file, mode, newline="") as of:
+    with open(out_file, "w", newline="") as of:
         of.write(json.dumps(dict_lst, indent=4))
     print("\n\tDone. Optimal combinations logged into output file\n")
