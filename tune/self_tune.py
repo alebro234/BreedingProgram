@@ -1,52 +1,66 @@
+# Run the GA to tune its parameters for the ND Styblinsky-Tang function
+# USAGE
+# python self_tune.py --cpus 4 -i input_file.json -o output_file.json -N 2
+
+
+
 import sys
+import os
 import json
 import argparse
 import numpy as np
 import multiprocessing
 
 sys.path.append("/home/ale234/github/BreedingProgram")
-from BreedingProgram import Breeder  # noqa
-
-def Styblinski_Tang(x):
-    return (x[0]**4 - 16*x[0]**2 + 5*x[0] + x[1]**4 - 16*x[1]**2 + 5*x[1])/2
-# Minimum @ x = (-2.90354, -2.90354), f = -78.3323
-
+from BreedingProgram import Breeder, Styblinski_Tang  # noqa
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--cpus", type=int, required=True)
-    parser.add_argument("--input", type=str, required=False)
-    parser.add_argument("--mode", type=str, default="a")
+    parser.add_argument("-i", type=str, required=False)
+    parser.add_argument("-o", type=str, required=True)
+    parser.add_argument("-N", type=int, required=False, default=2)
 
     args = parser.parse_args()
     cpus = min(args.cpus, multiprocessing.cpu_count())
-    input_file = args.input 
-    mode = args.mode
+    input_file = args.i
+    out_file = args.o
 
     # Tuning settings if no input file is provided
     if input_file is None:
-        settings_lst = [{
+        settings_lst = [
+        {
             "sel": "entropy",
-            "cross": "1p",
+            "cross": "2p",
             "mut": "swap",
             "pop_size": 250,
             "n_genes": 25,
-            "max_gen": 500,
-            "ps_lim": [0.1, 0.99],
+            "max_gen": 250,
+            "ps_lim": [0.1, 0.8],
             "pc_lim": [0.5, 0.99],
             "pm_lim": [0.01, 0.15],
             "T0_lim": [1, 10],
-            "alpha_lim": [0.1, 0.95],
-        }]
+            "alpha_lim": [0.1, 0.95]
+        }
+        ]
     else:
         with open(input_file, "r") as f:
             settings_lst = json.load(f)
 
 
-    # iterate over settings
+    # dimension of Styblinski-Tang function for which to tune
+    test_DIM = args.N
+    test_search_space = []
+    for _ in range(test_DIM):
+        test_search_space.append((-5, 5))
 
-    output = []
+
+    out_file = "new_1d_optimized.json"
+
+    os.system("rm -f " + out_file)
+    with open(out_file, "w", newline="") as f:
+        json.dump([], f)
 
     for settings in settings_lst:
 
@@ -57,7 +71,7 @@ if __name__ == "__main__":
             def error_func(vars):
                 ps, pc, pm = vars
 
-                breeder = Breeder(problem_size=2)
+                breeder = Breeder(problem_size=test_DIM)
                 breeder.pop_size = settings["pop_size"]
                 breeder.n_genes = settings["n_genes"]
                 breeder.selection_method = "tournament"
@@ -67,13 +81,13 @@ if __name__ == "__main__":
                 breeder.pc = pc
                 breeder.pm = pm
 
-                breeder.start_evolution(Styblinski_Tang, ((-5, 5), (-5, 5)), max_gen=settings["max_gen"], log=False, plot=False)
+                breeder.start_evolution(Styblinski_Tang, test_search_space, max_gen=settings["max_gen"], log=False, plot=False)
 
-                err = [abs(-78.3323 - breeder.best[-1].fitness)]
-                err.extend([abs(-2.90354 - x) for x in breeder.best[-1].decoded_genome])
-                err = np.linalg.norm(err)
+                errnorm = [abs(1 - breeder.best[-1].fitness/(-78.33234))]
+                errnorm.extend([abs(1 - x/(-2.903534)) for x in breeder.best[-1].decoded_genome])
+                errnorm = 100 * np.linalg.norm(errnorm)
 
-                return err
+                return errnorm
 
             N = 3
             search_space = ( settings["ps_lim"], settings["pc_lim"], settings["pm_lim"] )
@@ -83,7 +97,7 @@ if __name__ == "__main__":
             def error_func(vars):
                 ps, pc, pm, T0, alpha = vars
 
-                breeder = Breeder(problem_size=2)
+                breeder = Breeder(problem_size=test_DIM)
                 breeder.pop_size = settings["pop_size"]
                 breeder.n_genes = settings["n_genes"]
                 breeder.selection_method = "entropy"
@@ -95,14 +109,13 @@ if __name__ == "__main__":
                 breeder.T0 = T0
                 breeder.alpha = alpha
 
-                breeder.start_evolution(Styblinski_Tang, ((-5, 5), (-5, 5)), max_gen=settings["max_gen"], log=False, plot=False)
+                breeder.start_evolution(Styblinski_Tang, test_search_space, max_gen=settings["max_gen"], log=False, plot=False)
 
-                err = [abs(-78.3323 - breeder.best[-1].fitness)]
-                err.extend([abs(-2.90354 - x) for x in breeder.best[-1].decoded_genome])
-                err = np.linalg.norm(err)
-                
-
-                return err
+                errnorm = [abs(1 - breeder.best[-1].fitness/(-78.33234))]
+                errnorm.extend([abs(1 - x/(-2.903534)) for x in breeder.best[-1].decoded_genome])
+                errnorm = 100 * np.linalg.norm(errnorm)
+            
+                return errnorm
 
             N = 5
             search_space = ( settings["ps_lim"], settings["pc_lim"], settings["pm_lim"], settings["T0_lim"], settings["alpha_lim"] )
@@ -110,23 +123,27 @@ if __name__ == "__main__":
         else:
             raise ValueError("Invalid selection method")
 
+
+
+
+
         # let the self tuning start
 
         breeder = Breeder(problem_size=N, problem_type="minimize")
         breeder.selection_method = "entropy"
-        breeder.crossover_method = "1p"
+        breeder.crossover_method = "2p"
         breeder.mutation_method = "flip"
-        breeder.pop_size = 250
-        breeder.n_genes = 15
-        breeder.ps = 0.2
-        breeder.pc = 0.8
+        breeder.pop_size = 200
+        breeder.n_genes = 25
+        breeder.ps = 0.3
+        breeder.pc = 0.9
         breeder.pm = 0.1
-        breeder.T0 = 3.6
-        breeder.alpha = 0.55
+        breeder.T0 = 7
+        breeder.alpha = 0.75
 
-        breeder.start_evolution(error_func, search_space, eps=1e-9, cpus=cpus, max_gen=1000, plot=False)
+        breeder.start_evolution(error_func, search_space, eps=1e-9, cpus=cpus, max_gen=250, plot=False)
 
-        result = {
+        output = {
             "sel": settings["sel"],
             "cross": settings["cross"],
             "mut": settings["mut"],
@@ -138,23 +155,17 @@ if __name__ == "__main__":
             "pm": breeder.best[-1].decoded_genome[2],
         }
         if settings["sel"] == "entropy":
-            result["T0"] = breeder.best[-1].decoded_genome[3]
-            result["alpha"] = breeder.best[-1].decoded_genome[4]
+            output["T0"] = breeder.best[-1].decoded_genome[3]
+            output["alpha"] = breeder.best[-1].decoded_genome[4]
 
-        output.append(result)
 
-    # log results to output JSON file
-    
-    out_file = "optimized.json"
+        # log each results when done to output JSON file
+        
 
-    if mode == "a":
         with open(out_file, "r") as f:
             prev_output = json.load(f)
-        prev_output.extend(output)
-         
+        prev_output.append(output)
+        
         with open(out_file, "w", newline="") as f:
             json.dump(prev_output, f, indent=4)
-    else:
-        with open(out_file, "w", newline="") as f:
-            json.dump(output, f, indent=4)
 

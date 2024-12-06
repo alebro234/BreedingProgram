@@ -1,2 +1,1 @@
-# BreedingProgram
-Genetic algorithm for N variable optimization
+Object Oriented Genetic Algorithm for N variable optimization

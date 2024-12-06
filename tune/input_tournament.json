@@ -1,0 +1,56 @@
+[
+  {
+    "sel": "tournament",
+    "cross": "1p",
+    "mut": "flip",
+    "pop_size": 250,
+    "n_genes": 25,
+    "max_gen": 250,
+    "ps_lim": [0.05, 0.95],
+    "pc_lim": [0.4, 0.95],
+    "pm_lim": [0.01, 0.12]
+  },
+
+
+  {
+    "sel": "tournament",
+    "cross": "2p",
+    "mut": "flip",
+    "pop_size": 250,
+    "n_genes": 25,
+    "max_gen": 250,
+    "ps_lim": [0.05, 0.95],
+    "pc_lim": [0.4, 0.95],
+    "pm_lim": [0.01, 0.12]
+  },
+
+
+  {
+    "sel": "tournament",
+    "cross": "1p",
+    "mut": "swap",
+    "pop_size": 250,
+    "n_genes": 25,
+    "max_gen": 250,
+    "ps_lim": [0.05, 0.95],
+    "pc_lim": [0.4, 0.95],
+    "pm_lim": [0.01, 0.12]
+  },
+
+
+  {
+    "sel": "tournament",
+    "cross": "2p",
+    "mut": "swap",
+    "pop_size": 250,
+    "n_genes": 25,
+    "max_gen": 250,
+    "ps_lim": [0.05, 0.95],
+    "pc_lim": [0.4, 0.95],
+    "pm_lim": [0.01, 0.12]
+  }
+
+
+
+]
+

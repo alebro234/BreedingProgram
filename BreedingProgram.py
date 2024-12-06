@@ -3,18 +3,60 @@ import matplotlib.pyplot as plt
 import time
 import multiprocessing
 
-# utils
+    # Test function
+def Styblinski_Tang(x):
+    f = 0
+    for xi in x:
+        f += xi**4 - 16*xi**2 + 5*xi
+    return f/2
+# Minimum @ x = (-2.903534, ...), f = -39.16617*N
 
+
+def run_breeder_test(settings, N=2):
+    # Runs the GA minimizing ND Styblinsky-Tang in hypercube [-5, 5]
+    # settings: dictionary with GA settings
+    # N: dimension of Styblinski-Tang function
+    # returns: dictionary with best individual, error norm and simulation time
+    search_space = []
+    for _ in range(N):
+        search_space.append((-5, 5))
+
+    minimum = [-2.903534] * N
+    minimum.append(-39.16617*N)
+    
+    breeder = Breeder(N, "minimize")
+    breeder.pop_size = settings["pop_size"]
+    breeder.n_genes = settings["n_genes"]
+    breeder.selection_method = settings["sel"]
+    breeder.crossover_method = settings["cross"]
+    breeder.mutation_method = settings["mut"]
+    breeder.ps = settings["ps"]
+    breeder.pc = settings["pc"]
+    breeder.pm = settings["pm"]
+    breeder.T0 = settings["T0"] if "T0" in settings.keys() else 0
+    breeder.alpha = settings["alpha"] if "alpha" in settings.keys() else 0
+    
+    breeder.start_evolution(Styblinski_Tang, search_space, max_gen=settings["max_gen"], log=False, plot=True, sol=minimum)
+
+    breeder.best[-1].id = breeder.gen_number
+    errnorm = [abs(1-breeder.best[-1].fitness/(-39.16617*N))*100]
+    errnorm.extend([abs(1-x/-2.903534)*100 for x in breeder.best[-1].decoded_genome])
+    errnorm = np.linalg.norm(errnorm)
+
+    return {"best": breeder.best[-1], "errnorm": errnorm, "sim_time": breeder.sim_time}
+
+
+    # Useful functions for data handling and logging
 
 def extract_id(lst, ids):
-    # Extract elements from lst at the specified indices in ids.
+    # extract elements from lst at the specified indices in ids.
     if len(ids) > len(lst):
         raise ValueError("Error in extract_id(): len(ids) must be <= len(lst)")
     return [lst[i] for i in ids if 0 <= i < len(lst)]
 
 
 def extract_logic(lst, logic_ids):
-    # Extract elements from lst where logic_ids is True.
+    # extract elements from lst where logic_ids is True.
     if len(logic_ids) != len(lst):
         raise ValueError(
             "Error in extract_logic(): len(logic_ids) must equal len(lst)")
@@ -25,6 +67,44 @@ def display_time(sim_time):
     seconds = sim_time % 60
     return f"{minutes} min {seconds:.2f} s" if minutes > 0 else f"{seconds:.2f} s"
 
+
+def dict_list_to_latex_table(dict_list, caption="", label=""):
+   # convert a list of dictionaries into a LaTeX table.
+    headers = dict_list[0].keys()
+    
+    latex_table = "\\begin{table}[ht]\n"
+    latex_table += "\\centering\n"
+    latex_table += "\\begin{tabular}{" + " | ".join(["c"] * len(headers)) + "}\n"
+    latex_table += "\\hline\n"
+    
+    latex_table += " & ".join(headers) + " \\\\\n"
+    latex_table += "\\hline\n"
+    
+    for row in dict_list:
+        formatted_row = []
+        for header in headers:
+            value = row[header]
+            if isinstance(value, float):
+                formatted_row.append(f"{value:.5f}")
+            else:
+                formatted_row.append(str(value))
+        latex_table += " & ".join(formatted_row) + " \\\\\n"
+        latex_table += "\\hline\n"
+    
+    latex_table += "\\end{tabular}\n"
+    if caption:
+        latex_table += f"\\caption{{{caption}}}\n"
+    if label:
+        latex_table += f"\\label{{{label}}}\n"
+    latex_table += "\\end{table}\n"
+    
+    return latex_table
+
+
+
+
+
+    # GA classes
 
 class Individual():
     # Individual class, represents a single candidate solution
@@ -51,20 +131,18 @@ class Individual():
                     pos = np.random.choice(
                         np.arange(n_genes), 2, replace=False)
                     pos1, pos2 = pos[0], pos[1]
-                    self.genome[i, pos1], self.genome[i,
-                                                      pos2] = self.genome[i, pos2], self.genome[i, pos1]
+                    self.genome[i, pos1], self.genome[i,pos2] = self.genome[i, pos2], self.genome[i, pos1]
         else:
             raise ValueError("Unknown mutation method")
 
-    def display_genome(self, decoded=False):
+    def display_genome(self, decoded=True):
         # displays individual genome in binary or decoded format
         str = "" if self.id >= 10 else "0"
         if not decoded:
-            print("#" + str + f"{self.id} {[chrom.tolist()
-                  for chrom in self.genome]}, fit = {self.fitness}")
+            print("#" + str + f"{self.id} {[chrom.tolist() for chrom in self.genome]}, fit = {self.fitness}")
         else:
-            print("#" + str + f"{self.id} {[chrom.tolist()
-                  for chrom in self.decoded_genome]}, fit = {self.fitness}")
+            print("#" + str + f"{self.id} {[chrom.tolist()for chrom in self.decoded_genome]}, fit = {self.fitness}")
+
 
 
 
@@ -78,7 +156,7 @@ class Population():
     def create_pop(self, pop_size, n_chrom, n_genes, log=False):
         # pop_size: number of individuals in the population
         # n_chrom: number of chromosomes (problem variables) per individual
-        # m_genes: number of genes per individual (binary digits)
+        # n_genes: number of genes per individual (binary digits)
         # pop: list of individuals in the population
 
         self.pop = []
@@ -95,8 +173,7 @@ class Population():
         self.avg = []
 
         if log:
-            print(f"Generated population of {pop_size} individuals, {
-                  n_chrom} chromosomes with {n_genes} genes each")
+            print(f"Generated population of {pop_size} individuals, {n_chrom} chromosomes with {n_genes} genes each")
             self.display_pop(decoded=False)
 
     def breed(self, method, pc, log=False):
@@ -164,36 +241,40 @@ class Population():
 
 
 
+
 class Breeder(Population):
 
     def __init__(
         self,
         problem_size, problem_type="minimize",
         pop_size=250, n_genes=25,
-        selection_method="entropy", ps=0.3518518518518517,
-        crossover_method="1p", pc=0.7888888888888888,
-        mutation_method="flip", pm=0.07740740740740738
+        selection_method="entropy", 
+        crossover_method="1p", 
+        mutation_method="flip", 
+        ps =    0.6326809535229491,  
+        pc =    0.9864212526804582,  
+        pm =    0.07114777151190553, 
+        T0 =    9.366595517593488,   
+        alpha = 0.48196572458641895  
     ):
         self.pop_size = pop_size
         self.n_chrom = problem_size
         self.n_genes = n_genes
-        self.problem_type = problem_type
-        self.selection_method = selection_method
         self.ps = ps
+        self.problem_type = problem_type
+        self.selection_method = selection_method         
         self.crossover_method = crossover_method
         self.pc = pc
         self.mutation_method = mutation_method
         self.pm = pm
-
-        # entropy selection default parameters (optimized for default ps, pc, pm)
-        self.T0 = 3.314814814814815
-        self.alpha = 0.5611111111111111
+        self.T0 = T0
+        self.alpha = alpha
 
     def display_settings(self, search_space):
         print(f"\tProblem type: {self.n_chrom}D {self.problem_type} in {search_space}")
-        print(f"\tSelection:   {self.selection_method}\n\tps = {self.ps}")
-        print(f"\tCrossover:   {self.crossover_method}\n\tpc = {self.pc}")
-        print(f"\tMutation:    {self.mutation_method}\n\tpm = {self.pm}\n")
+        print(f"\tSelection:   {self.selection_method}, ps = {self.ps}")
+        print(f"\tCrossover:   {self.crossover_method}, pc = {self.pc}")
+        print(f"\tMutation:    {self.mutation_method},  pm = {self.pm}\n")
         if self.selection_method == "entropy":
             print(f"\tT(n) = {self.T0} * ({self.alpha})^n\n")
 
@@ -203,16 +284,13 @@ class Breeder(Population):
 
         # check dimensions
         if np.shape(search_space) != (self.n_chrom, 2):
-            raise ValueError(f"Search space of incorrect dimension! Number of problem variables: {
-                self.n_chrom}")
+            raise ValueError(f"Search space of incorrect dimension! Number of problem variables: {self.n_chrom}")
 
         for ind in self.pop:
             for i in range(self.n_chrom):
-                bin_to_int = np.array(
-                    [ind.genome[i][j]*2**j for j in range(self.n_genes)]).sum()
-                int_to_dec = search_space[i][0] + bin_to_int*(
-                    search_space[i][1] - search_space[i][0]) / (2**self.n_genes - 1)
-                ind.decoded_genome[i] = int_to_dec
+                bin_to_int = np.array([ind.genome[i][j]*2**j for j in range(self.n_genes)]).sum()
+                int_to_dec = search_space[i][0] + bin_to_int*(search_space[i][1] - search_space[i][0]) / (2**self.n_genes - 1)
+                ind.decoded_genome[i] = int_to_dec 
 
     def evaluate_finess(self, func, search_space, cpus, rank=True, log=False):
         # func: fitness function
@@ -237,8 +315,7 @@ class Breeder(Population):
             with multiprocessing.Pool(cpus) as pool:
                 for i in range(0, len(self.pop), cpus):
                     batch = self.pop[i:i+cpus]
-                    results = pool.map(
-                        func, [ind.decoded_genome for ind in batch])
+                    results = pool.map(func, [ind.decoded_genome for ind in batch])
 
                     self.fitness[i:i+len(batch)] = results
                     for k, result in enumerate(results):
@@ -257,8 +334,7 @@ class Breeder(Population):
                 self.pop = extract_id(self.pop, ranked_id)
                 self.fitness = self.fitness[ranked_id]
         else:
-            raise ValueError(
-                "Unknown problem type. Can be either maximize or minimize")
+            raise ValueError("Unknown problem type. Can be either maximize or minimize")
 
         self.avg.append(self.fitness.mean())
         if log:
@@ -268,8 +344,8 @@ class Breeder(Population):
 
     def select(self, ps, log=False):
         # ps: % of individuals to be picked in each batch
-        # self.selection_method = "tournament" (default), "entropy"
-        # log: print output of selection process, useful for debugging
+        # self.selection_method = "tournament", "entropy"
+        # log: print output of selection process (for debugging)
 
         worthy_pop = []
         current_pop = self.pop.copy()
@@ -302,6 +378,7 @@ class Breeder(Population):
                 self.display_pop(decoded=False)
 
         elif self.selection_method == "entropy":
+
             old_best = self.best[max(0, len(self.best)-1)].fitness
             # Temperature, linear decrase
             # T = self.T0 - (self.T0/1000)*self.gen_number
@@ -330,8 +407,7 @@ class Breeder(Population):
                             survival_prob[i] = 1
                         else:
                             try:
-                                survival_prob[i] = np.exp(
-                                    -abs(old_best - batch_fit[i])/T)
+                                survival_prob[i] = np.exp(-abs(old_best - batch_fit[i])/T)
                             except ZeroDivisionError:
                                 survival_prob[i] = 0
 
@@ -341,16 +417,14 @@ class Breeder(Population):
                             survival_prob[i] = 1
                         else:
                             try:
-                                survival_prob[i] = np.exp(
-                                    -abs(old_best - batch_fit[i])/T)
+                                survival_prob[i] = np.exp(-abs(old_best - batch_fit[i])/T)
                             except ZeroDivisionError:
                                 survival_prob[i] = 0
                 else:
                     raise ValueError("Unknown problem type")
 
                 # select from batch
-                shall_live = np.random.uniform(
-                    0, 1, len(rand_id)) < survival_prob
+                shall_live = np.random.uniform(0, 1, len(rand_id)) < survival_prob
                 for ind in extract_logic(selection_batch, shall_live):
                     worthy_pop.append(ind)
                     worthy_id.append(ind.id)
@@ -389,7 +463,7 @@ class Breeder(Population):
 
         if log:
             print(f"\n\tGenerating population of {self.pop_size} individuals, {self.n_chrom} chromosomes with {self.n_genes} genes each...\n")
-        np.random.seed(None)
+        np.random.seed()
         self.create_pop(self.pop_size, self.n_chrom, self.n_genes)
         # initial population decoded and assigned fitness value
         self.evaluate_finess(func, search_space, cpus)
@@ -423,11 +497,20 @@ class Breeder(Population):
             err = abs(self.best[-1].fitness - self.best[-2].fitness)
             n += 1
 
+        self.sim_time = time.time() - start_time
+
         if log:
             np.printoptions(precision=5, suppress=True)
             if len(self.pop) > 1:
                 print(f"\n\tOptimal individual found after {n} generations")
             print(f"\tx = {[x for x in self.best[-1].decoded_genome]}, fit = {self.best[-1].fitness}\n")
+            if sol != None:
+                err_x = [abs(1-x/sol[i])*100 for i, x in enumerate(self.best[-1].decoded_genome)]
+                err_f = abs(1-self.best[-1].fitness/sol[-1])*100
+                err_string = "\terr(x) = ["
+                err_string += ",".join(f"{e:.5f}" for e in err_x)
+                err_string += f"]%, err(f) = {err_f:.6f}%"
+                print(err_string)
         if plot:
             self.plot_results(func, search_space, sol)
 
@@ -445,7 +528,7 @@ class Breeder(Population):
 
             fig = plt.figure(figsize=(12, 6))
             ax = fig.add_subplot(121)
-            ax.plot(x, func(x))
+            ax.plot(x, [func([xi]) for xi in x], alpha=0.5)
             plt.xlabel("x")
             plt.ylabel("f(x)")
             title_string = f"{self.problem_type}d function in {search_space}\n x = {xs[0]:.5f}, f(x) = {ys[0]:.6f}"
@@ -460,8 +543,8 @@ class Breeder(Population):
             ax2 = fig.add_subplot(122)
             ax2.plot(range(self.gen_number+1), [ind.fitness for ind in self.best])
             ax2.scatter(range(self.gen_number+1), [ind.fitness for ind in self.best], s=5)
-            ax2.set_xlabel = "generation"
-            ax2.set_ylabel = "f(x)"
+            plt.xlabel("n")
+            plt.ylabel("f(x)")
             ax2.set_title("Generational best fitness")
             ax2.grid()
             # print(f"\n(id) Population at last generation")
@@ -527,7 +610,14 @@ class Breeder(Population):
                         [ind.fitness for ind in self.best], s=5)
             plt.xlabel = "generation"
             plt.ylabel = "f(x)"
-            plt.title("Generational best fitness")
+            err_string = ""
+            if sol != None:
+                err_x = [abs(1-x/sol[i])*100 for i, x in enumerate(self.best[-1].decoded_genome)]
+                err_f = abs(1-self.best[-1].fitness/sol[-1])*100
+                err_string = "\nerr(x) = ["
+                err_string += ",".join(f"{e:.5f}" for e in err_x)
+                err_string += f"]%, err(f) = {err_f:.6f}%"
+            plt.title(f"Generational best fitness{err_string}")
             plt.grid()
             plt.show()
 
@@ -538,31 +628,4 @@ class Breeder(Population):
 
 
 
-
-def Styblinski_Tang(x):
-    return (x[0]**4 - 16*x[0]**2 + 5*x[0] + x[1]**4 - 16*x[1]**2 + 5*x[1])/2
-# Minimum @ x = (-2.9035, -2.9035), f = -78.3323
-
-
-# to be used with input JSON file
-def run_breeder(settings):
-    # settings: dictionary with GA settings
-    
-    breeder = Breeder(2, "minimize")
-    breeder.pop_size = settings["pop_size"]
-    breeder.n_genes = settings["n_genes"]
-    breeder.selection_method = settings["sel"]
-    breeder.crossover_method = settings["cross"]
-    breeder.mutation_method = settings["mut"]
-    breeder.ps = settings["ps"]
-    breeder.pc = settings["pc"]
-    breeder.pm = settings["pm"]
-    breeder.T0 = settings["T0"]
-    breeder.alpha = settings["alpha"]
-    
-    breeder.start_evolution(Styblinski_Tang, ((-5, 5), (-5, 5)), max_gen=settings["max_gen"], log=False, plot=False)
-
-    breeder.best[-1].id = breeder.gen_number
-
-    return breeder.best[-1]
 
