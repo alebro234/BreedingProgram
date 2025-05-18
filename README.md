@@ -1,1 +1,1 @@
-Object Oriented Genetic Algorithm for N variable optimization
+Object Oriented, multiprocessing Genetic Algorithm for multi-variable optimization
